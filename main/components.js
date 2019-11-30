@@ -44,7 +44,7 @@ customElements.define('action-select', class extends HTMLElement {
 
             for (var i = 0; i < form.elements.length; i++ ) {
                 let e = form.elements[i];
-                if (e.value !== undefined)
+                if (e.name == 'action' || e.name == 'd1' || e.name == 'd2')
                     kvpairs.push(e.name + "=" + e.value);
             }
             form_data = kvpairs.join("&");
@@ -76,7 +76,7 @@ customElements.define('action-select', class extends HTMLElement {
 
             fetch("/configure", {
                 method: "POST",
-                body: "play: " + get_values(),
+                body: "play:" + get_values(),
             }).then(res => {
                 show_notify("played");
             }).catch(res => {

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 enum Notes {
 	C = 0,
@@ -28,13 +29,14 @@ typedef struct midi_event_t
 	uint8_t  header;
 	uint8_t  timestamp;
 	uint8_t  status;
-	uint8_t  note;
-	uint8_t  velocity;
+	uint8_t  d1;
+	uint8_t  d2;
 } midi_event_t;
 
 void midi_generate_note(midi_event_t *event, uint8_t note,
 		uint8_t octave, uint8_t velocity);
 void midi_setup_note(midi_event_t *event, uint16_t tm, bool on, uint8_t channel);
+midi_event_t * parse_action(char *action_string, size_t *length, char **btn);
 
 void initialise_wifi();
 void start_http_server();

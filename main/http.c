@@ -150,6 +150,57 @@ static esp_err_t initial_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
+static esp_err_t configure_handler(httpd_req_t *req)
+{
+	char *error = NULL;
+	char *buf = NULL;
+	httpd_resp_set_hdr(req, "Location", "/");
+
+	if (req->content_len > 10000)
+	{
+		error = "too big packet";
+		goto done;
+	}
+
+	buf = malloc(req->content_len + 1);
+	int ret = httpd_req_recv(req, buf, req->content_len);
+
+	if (ret <= 0 || ret != req->content_len)
+	{
+		error = "packet reading error";
+		goto done;
+	}
+	buf[req->content_len] = '\0';
+
+	char *pos;
+	if ((pos = strstr(buf, "play")) != NULL)
+	{
+		size_t	len;
+		pos += 5;
+		ESP_LOGI(TAG, "%s", pos);
+		midi_event_t *midi = parse_action(pos, &len, NULL);
+		ESP_LOGI(TAG, "MIDI: %.2x%.2x%.2x%.2x%.2x", midi->header, midi->timestamp,
+			midi->status, midi->d1, midi->d2);
+		free(midi);
+	}
+
+done:
+	if (error) {
+		httpd_resp_set_status(req, HTTPD_500);
+		httpd_resp_sendstr(req, error);
+	}
+	else
+	{
+		httpd_resp_set_status(req, HTTPD_200);
+		httpd_resp_sendstr(req, "OK");
+	}
+
+	if (buf)
+		free(buf);
+
+	return ESP_OK;
+}
+
 file_cxt index_cxt = {"text/html", index_start, index_end};
 file_cxt comp_cxt = {"text/js", comp_start, comp_end};
 file_cxt pure_cxt = {"text/css", pure_start, pure_end};
@@ -189,6 +240,14 @@ void start_http_server()
         .user_ctx  = NULL,
     };
     httpd_register_uri_handler(server, &initial);
+
+    httpd_uri_t configure = {
+        .uri       = "/configure",
+        .method    = HTTP_POST,
+        .handler   = configure_handler,
+        .user_ctx  = NULL,
+    };
+    httpd_register_uri_handler(server, &configure);
 }
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
