@@ -39,7 +39,7 @@ customElements.define('action-select', class extends HTMLElement {
         let form = this.querySelector("form");
         let form_data = "";
 
-        function update_form_values() {
+        function get_values() {
             let kvpairs = [];
 
             for (var i = 0; i < form.elements.length; i++ ) {
@@ -48,6 +48,11 @@ customElements.define('action-select', class extends HTMLElement {
                     kvpairs.push(e.name + "=" + e.value);
             }
             form_data = kvpairs.join("&");
+            return form_data;
+        }
+
+        function update_form_values() {
+            form_data = get_values();
             self.setAttribute("value", form_data);
         }
         update_form_values();
@@ -64,6 +69,20 @@ customElements.define('action-select', class extends HTMLElement {
         let input2 = form.querySelector('input[name="d2"]');
         input2.setAttribute("value", vals["d2"]);
         input2.addEventListener("change", update_form_values);
+
+        let playbtn = form.querySelector('button');
+        playbtn.addEventListener("click", function (e) {
+            e.preventDefault();
+
+            fetch("/configure", {
+                method: "POST",
+                body: "play: " + get_values(),
+            }).then(res => {
+                show_notify("played");
+            }).catch(res => {
+                show_notify("Error: " + res, true);
+            });
+        });
     }
 });
 
@@ -93,7 +112,8 @@ function show_error(msg) {
 
 window.onload = function () {
     let main_btn = document.getElementById("save");
-    main_btn.addEventListener("click", function () {
+    main_btn.addEventListener("click", function (e) {
+        e.preventDefault();
         main_btn.setAttribute("disabled", true);
         let selects = document.getElementsByTagName("action-select");
         let value = "";
