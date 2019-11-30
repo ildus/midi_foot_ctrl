@@ -459,5 +459,6 @@ void app_main()
         ESP_LOGE(TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
 
-    return;
+    ESP_ERROR_CHECK(nvs_flash_init());
+    initialise_wifi();
 }

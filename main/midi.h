@@ -36,6 +36,8 @@ void midi_generate_note(midi_event_t *event, uint8_t note,
 		uint8_t octave, uint8_t velocity);
 void midi_setup_note(midi_event_t *event, uint16_t tm, bool on, uint8_t channel);
 
+void initialise_wifi();
+
 enum {
     IDX_SVC,
     IDX_MIDI_CHAR,
