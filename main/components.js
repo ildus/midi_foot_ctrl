@@ -1,4 +1,26 @@
 let tmpl = document.querySelector('#x-action-select-template');
+let initialMap = {};
+
+/* parse vals */
+if (initial_values)
+{
+    let lines = initial_values.split('\n');
+    lines.forEach(line => {
+        if (line.length == 0)
+            return;
+
+        let parts = line.split(':');
+        let id = parts[0];
+        let vals = parts[1].split('&')
+
+        initialMap[id] = {};
+        vals.forEach(val => {
+            let keyval = val.split('=');
+            initialMap[id][keyval[0]] = keyval[1];
+        })
+    });
+}
+
 customElements.define('action-select', class extends HTMLElement {
     constructor() {
         super();
@@ -30,13 +52,17 @@ customElements.define('action-select', class extends HTMLElement {
         }
         update_form_values();
 
+        let vals = initialMap[this.getAttribute("id")];
         let select = form.querySelector("select");
+        select.value = vals["action"];
         select.addEventListener("change", update_form_values);
 
         let input1 = form.querySelector('input[name="d1"]');
+        input1.setAttribute("value", vals["d1"]);
         input1.addEventListener("change", update_form_values);
 
         let input2 = form.querySelector('input[name="d2"]');
+        input2.setAttribute("value", vals["d2"]);
         input2.addEventListener("change", update_form_values);
     }
 });
@@ -68,6 +94,7 @@ function show_error(msg) {
 window.onload = function () {
     let main_btn = document.getElementById("save");
     main_btn.addEventListener("click", function () {
+        main_btn.setAttribute("disabled", true);
         let selects = document.getElementsByTagName("action-select");
         let value = "";
 
@@ -78,12 +105,17 @@ window.onload = function () {
         }
 
         // save configuration
+        console.log(value);
         fetch("/configure", {
             method: "POST",
             body: value
         }).then(res => {
 			show_notify("saved");
 			console.log("Request complete! response:", res);
+            main_btn.removeAttribute("disabled");
+        }).catch(res => {
+            show_notify("Error: " + res, true);
+            main_btn.removeAttribute("disabled");
         });
     });
 };

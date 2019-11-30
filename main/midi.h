@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "esp_err.h"
-
 enum Notes {
 	C = 0,
 	Ci,
@@ -49,4 +47,13 @@ enum {
     MIDI_IDX_NB,
 };
 
+enum {
+    TOP_LEFT,
+    TOP_CENTER,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_CENTER,
+    BOTTOM_RIGHT,
+    N_BUTTONS,
+};
 #endif

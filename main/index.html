@@ -5,8 +5,6 @@
     <link rel="stylesheet" href="pure.css">
 </head>
 <body>
-    <style>
-    </style>
     <div class="block">
         <template id="x-action-select-template">
             <section slot="controls">
@@ -14,7 +12,7 @@
                     <fieldset>
                         <legend>{name}</legend>
                         <div class="pure-g">
-                            <div class="pure-u-1-2">
+                            <div class="pure-u-1-2 pure-u-md-5-24">
                                 <select name="action" class="pure-input-1">
                                     <option value="note_off">Note off</option>
                                     <option value="note_on">Note on</option>
@@ -35,6 +33,7 @@
                 </form>
             </section>
         </template>
+        <script src="initial.js"></script>
         <script src="components.js"></script>
         <action-select id="top_left" name="Top Left" value=""></action-select>
         <action-select id="top_center" name="Top Center" value=""></action-select>

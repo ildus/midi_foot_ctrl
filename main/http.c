@@ -1,16 +1,14 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 #include "midi.h"
-
-#include "lwip/err.h"
-#include "lwip/sys.h"
 
 /* The examples use WiFi configuration that you can set via 'make menuconfig'.
    If you'd rather not, just change the below entries to strings with
@@ -18,9 +16,6 @@
 */
 #define WIFI_SSID      "bigfoot"
 #define WIFI_PASS      "12341234"
-
-/* FreeRTOS event group to signal when we are connected*/
-static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "wifi softAP";
 
@@ -37,12 +32,122 @@ extern const char comp_end[]		asm("_binary_components_js_end");
 extern const char pure_start[]		asm("_binary_pure_css_start");
 extern const char pure_end[]		asm("_binary_pure_css_end");
 
+static char *button_names[] = {
+	"top_left",
+	"top_center",
+	"top_right",
+	"bottom_left",
+	"bottom_center",
+	"bottom_right"
+};
+
+static char *initial_format = "var initial_values = `";
+static char *default_values[] = {
+	"action=cc&d1=89&d2=0",
+	"action=cc&d1=109&d2=0",
+	"action=cc&d1=108&d2=0",
+	"action=cc&d1=68&d2=0",
+	"action=cc&d1=86&d2=0",
+	"action=cc&d1=85&d2=0"
+};
+
+
 static esp_err_t file_handler(httpd_req_t *req)
 {
 	file_cxt *ctx = req->user_ctx;
     httpd_resp_set_type(req, ctx->type);
     httpd_resp_send(req, ctx->start, ctx->end - ctx->start - 1);
     return ESP_OK;
+}
+
+static esp_err_t initial_handler(httpd_req_t *req)
+{
+	static size_t init_len = 0;
+	esp_err_t err;
+	size_t	len = 0;
+	size_t	lengths[N_BUTTONS];
+	size_t	key_lengths[N_BUTTONS];
+
+	if (init_len == 0)
+		init_len = strlen(initial_format);
+
+	nvs_handle my_handle;
+    err = nvs_open("storage", NVS_READWRITE, &my_handle);
+	ESP_ERROR_CHECK(err);
+
+	/* first calculate whole length */
+	for (size_t i = 0; i < N_BUTTONS; i++)
+	{
+		size_t	vallen;
+		char *key = button_names[i];
+		key_lengths[i] = strlen(key);
+
+		err = nvs_get_str(my_handle, key, NULL, &vallen);
+		switch (err)
+		{
+			case ESP_OK:
+				lengths[i] = vallen - 1; /* minus zero terminator */
+				break;
+			case ESP_ERR_NVS_NOT_FOUND:
+				len += strlen(default_values[i]);
+				lengths[i] = 0;		/* indicates that it's default */
+				break;
+			default:
+				ESP_LOGE(TAG, "Error (%s) reading!\n", esp_err_to_name(err));
+				ESP_ERROR_CHECK(err);
+		}
+		len += key_lengths[i] + 1; /* plus ':' */
+		len += lengths[i];
+	}
+
+	/* we allocate more, just for any case and \n delimiters */
+	char *res = malloc(init_len + len + 100);
+	if (res == 0)
+	{
+		ESP_LOGE(TAG, "could not allocate memory");
+		return ESP_FAIL;
+	}
+	char *pos = res;
+
+	/* fill the output */
+	memcpy(pos, initial_format, init_len);
+	pos += init_len;
+
+	for (size_t i = 0; i < N_BUTTONS; i++)
+	{
+		char *key = button_names[i];
+		memcpy(pos, key, key_lengths[i]);
+		pos += key_lengths[i];
+		*pos++ = ':';
+
+		if (lengths[i] == 0)
+		{
+			size_t vallen = strlen(default_values[i]);
+			memcpy(pos, default_values[i], vallen);
+			pos += vallen;
+		}
+		else
+		{
+			ESP_ERROR_CHECK(nvs_get_str(my_handle, key, pos, &lengths[i]))
+			pos += lengths[i];
+		}
+
+		*pos = '\n';
+		pos++;
+	}
+
+	*pos++ = '`';
+	*pos++ = ';';
+	*pos = '\0';
+	ESP_LOGI(TAG, "%s", res);
+
+	nvs_close(my_handle);
+
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send(req, res, pos - res);
+	free(res);
+
+	return ESP_OK;
 }
 
 file_cxt index_cxt = {"text/html", index_start, index_end};
@@ -76,6 +181,14 @@ void start_http_server()
 	register_file_url(server, "/", &index_cxt);
 	register_file_url(server, "/components.js", &comp_cxt);
 	register_file_url(server, "/pure.css", &pure_cxt);
+
+    httpd_uri_t initial = {
+        .uri       = "/initial.js",
+        .method    = HTTP_GET,
+        .handler   = initial_handler,
+        .user_ctx  = NULL,
+    };
+    httpd_register_uri_handler(server, &initial);
 }
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
@@ -99,8 +212,6 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
 void initialise_wifi()
 {
-    s_wifi_event_group = xEventGroupCreate();
-
     tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
 

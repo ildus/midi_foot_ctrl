@@ -27,17 +27,8 @@
 
 #define ADV_CONFIG_FLAG             (1 << 0)
 #define SCAN_RSP_CONFIG_FLAG        (1 << 1)
-#define BT_DISABLED_FLAG            (1 << 2)
 
 #define CHAR_VAL_LEN_MAX 20
-
-#define MIN_OCTAVE 0
-#define MAX_OCTAVE 8
-
-static int current_octave = 4;
-
-static EventGroupHandle_t bt_event_group;
-const static int CONNECTED_BIT = BIT0;
 
 // Callback declaration
 static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
@@ -288,7 +279,6 @@ static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gat
                     uint16_t descr_value = param->write.value[1] << 8 | param->write.value[0];
                     if (descr_value == 0x0001) {
                         ESP_LOGI(TAG, "notify enabled");
-                        xEventGroupSetBits(bt_event_group, CONNECTED_BIT);
                     } else if (descr_value == 0x0002) {
                         ESP_LOGI(TAG, "indicate enabled");
                     } else if (descr_value == 0x0000) {
@@ -341,7 +331,6 @@ static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gat
             break;
         case ESP_GATTS_DISCONNECT_EVT:
             ESP_LOGI(TAG, "ESP_GATTS_DISCONNECT_EVT, reason = %d", param->disconnect.reason);
-            xEventGroupClearBits(bt_event_group, CONNECTED_BIT);
             if (adv_config == 0) {
                 esp_ble_gap_start_advertising(&adv_params);
             }
@@ -399,20 +388,9 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 	}
 }
 
-
-void app_main()
-{
+static void init_ble() {
     esp_err_t ret;
-	bt_event_group = xEventGroupCreate();
 
-    // Initialize NVS.
-    ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-
-    ESP_ERROR_CHECK( ret );
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
@@ -458,9 +436,21 @@ void app_main()
     if (local_mtu_ret){
         ESP_LOGE(TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
+}
 
-    ESP_ERROR_CHECK(nvs_flash_init());
+void app_main()
+{
+    esp_err_t ret;
 
+    // Initialize NVS.
+    ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK( ret );
+
+    init_ble();
     initialise_wifi();
     start_http_server();
 }
