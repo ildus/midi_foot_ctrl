@@ -66,8 +66,8 @@ static esp_ble_adv_data_t adv_data = {
     .set_scan_rsp        = false,
     .include_name        = false,
     .include_txpower     = true,
-    .min_interval        = 0x20,
-    .max_interval        = 0x40,
+    .min_interval        = 0x02,
+    .max_interval        = 0x0C,
     .appearance          = 0x00,
     .manufacturer_len    = 0,
     .p_manufacturer_data = NULL,
@@ -83,8 +83,8 @@ static esp_ble_adv_data_t scan_rsp_data = {
     .set_scan_rsp        = true,
     .include_name        = true,
     .include_txpower     = true,
-    .min_interval        = 0x20,
-    .max_interval        = 0x40,
+    .min_interval        = 0x02,
+    .max_interval        = 0x0C,
     .appearance          = 0x00,
     .manufacturer_len    = 0,
     .p_manufacturer_data = NULL,
@@ -145,7 +145,6 @@ static const uint8_t empty_midi_packet[5] = {
 
 static uint16_t get_13bit_timestamp()
 {
-	return 0;
 	return (xTaskGetTickCount() * portTICK_PERIOD_MS) % ((2 << 13) - 1);
 }
 
@@ -161,12 +160,11 @@ void send_notes(void * arg)
 
     while (++count < 10000)
     {
-		uint16_t	tm = get_13bit_timestamp();
 		midi_event_t	event;
 
 		_Static_assert(sizeof(event) == 5, "struct should be packed");
 		midi_generate_note(&event, C, 4, 60);
-		midi_setup_note(&event, tm, count % 2 == 0, 0);
+		midi_setup_note(&event, 0, count % 2 == 0, 0);
 
 		esp_ble_gatts_send_indicate(
 			gl_profile_tab[PROFILE_MIDI_APP_IDX].gatts_if,
@@ -199,8 +197,8 @@ static const esp_gatts_attr_db_t gatt_db[MIDI_IDX_NB] =
 
     // MIDI Client Characteristic Configuration Descriptor
     [IDX_MIDI_CHAR_CFG]  =
-    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-      sizeof(uint16_t), sizeof(midi_ccc), (uint8_t *)midi_ccc}},
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *) &character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+      sizeof(uint16_t), sizeof(midi_ccc), (uint8_t *) midi_ccc}},
 };
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -325,8 +323,8 @@ static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gat
             memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
             /* For the IOS system, please reference the apple official documents about the ble connection parameters restrictions. */
             conn_params.latency = 0;
+            conn_params.min_int = 0x02;
             conn_params.max_int = 0x0c;
-            conn_params.min_int = 0x00;
             conn_params.timeout = 400;    // timeout = 400*10ms = 4000ms
             //start sent the update connection parameters to the peer device.
             esp_ble_gap_update_conn_params(&conn_params);
@@ -337,12 +335,8 @@ static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gat
 			task_context *task = (task_context *) malloc(sizeof(task_context));
 			task->conn_id = param->connect.conn_id;
 
-			xTaskCreate(send_notes,       /* Function that implements the task. */
-						"notes sender",          /* Text name for the task. */
-						2048,      /* Stack size in words, not bytes. */
-						( void * ) task,    /* Parameter passed into the task. */
-						tskIDLE_PRIORITY,/* Priority at which the task is created. */
-						NULL);      /* Used to pass out the created task's handle. */
+			xTaskCreate(send_notes, "notes sender", 2048, (void *) task,
+				tskIDLE_PRIORITY, NULL);
 
             break;
         case ESP_GATTS_DISCONNECT_EVT:
@@ -395,16 +389,14 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     }
 
     // Call each profile's callback, which is only one for now
-    do {
-		for (int idx = 0; idx < PROFILE_NUM; idx++) {
-			if (gatts_if == ESP_GATT_IF_NONE || /* ESP_GATT_IF_NONE, not specify a certain gatt_if, need to call every profile cb function */
-					gatts_if == gl_profile_tab[idx].gatts_if) {
-				if (gl_profile_tab[idx].gatts_cb) {
-					gl_profile_tab[idx].gatts_cb(event, gatts_if, param);
-				}
+	for (int idx = 0; idx < PROFILE_NUM; idx++) {
+		if (gatts_if == ESP_GATT_IF_NONE || /* ESP_GATT_IF_NONE, not specify a certain gatt_if, need to call every profile cb function */
+				gatts_if == gl_profile_tab[idx].gatts_if) {
+			if (gl_profile_tab[idx].gatts_cb) {
+				gl_profile_tab[idx].gatts_cb(event, gatts_if, param);
 			}
 		}
-    } while (0);
+	}
 }
 
 
@@ -419,8 +411,8 @@ void app_main()
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
-    ESP_ERROR_CHECK( ret );
 
+    ESP_ERROR_CHECK( ret );
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
