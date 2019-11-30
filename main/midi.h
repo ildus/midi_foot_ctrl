@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "esp_err.h"
+
 enum Notes {
 	C = 0,
 	Ci,
@@ -37,6 +39,7 @@ void midi_generate_note(midi_event_t *event, uint8_t note,
 void midi_setup_note(midi_event_t *event, uint16_t tm, bool on, uint8_t channel);
 
 void initialise_wifi();
+void start_http_server();
 
 enum {
     IDX_SVC,

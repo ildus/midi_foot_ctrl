@@ -4,7 +4,7 @@ customElements.define('action-select', class extends HTMLElement {
         super();
         this.shadow = this.attachShadow({mode: 'open'});
         this.shadow.innerHTML = `
-            <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
+            <link rel="stylesheet" href="pure.css">
             <slot name="controls"></slot>
         `;
     }
@@ -41,6 +41,30 @@ customElements.define('action-select', class extends HTMLElement {
     }
 });
 
+function show_notify(msg, error) {
+	let notify = document.getElementById("notify");
+	let notify_class = notify.classList;
+
+	if (error)
+		notify_class.add("alert-danger");
+	else
+		notify_class.add("alert-primary");
+
+	notify.innerHTML = msg;
+	notify.style.display = "inline";
+
+	setTimeout(function () {
+		notify.innerHTML = "";
+		notify_class.remove("alert-danger");
+		notify_class.remove("alert-primary");
+		notify.style.display = "none";
+	}, 2000);
+}
+
+function show_error(msg) {
+	show_notify(msg, true);
+}
+
 window.onload = function () {
     let main_btn = document.getElementById("save");
     main_btn.addEventListener("click", function () {
@@ -58,7 +82,8 @@ window.onload = function () {
             method: "POST",
             body: value
         }).then(res => {
-            console.log("Request complete! response:", res);
+			show_notify("saved");
+			console.log("Request complete! response:", res);
         });
     });
 };

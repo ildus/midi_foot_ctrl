@@ -1,21 +1,21 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="shortcut icon" href="https://midi.org/images/midi-fac2.png">
-    <link rel="apple-touch-icon-precomposed" href="https://midi.org/templates/yootheme/vendor/yootheme/theme-joomla/assets/images/apple-touch-icon.png">
     <title>MIDI configuration</title>
-    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
+    <link rel="stylesheet" href="pure.css">
 </head>
 <body>
-    <div style="margin:1em">
+    <style>
+    </style>
+    <div class="block">
         <template id="x-action-select-template">
             <section slot="controls">
-                <div class="pure-g">
-                    <div class="pure-u-1 pure-u-md-1-3">
-                        <form class="pure-form" name="action1">
-                            <legend>{name}</legend>
-                            <fieldset>
-                                <select name="action">
+                <form class="pure-form">
+                    <fieldset>
+                        <legend>{name}</legend>
+                        <div class="pure-g">
+                            <div class="pure-u-1-2">
+                                <select name="action" class="pure-input-1">
                                     <option value="note_off">Note off</option>
                                     <option value="note_on">Note on</option>
                                     <option value="cc">Control Change (CC)</option>
@@ -23,12 +23,16 @@
                                     <option value="song_pos_pointer">Song Position Pointer</option>
                                     <option value="song_select">Song Select</option>
                                 </select>
-                                <label>Data 1 <input name="d1" value="0" type="number" min=0 max=127 maxlength=3></label>
-                                <label>Data 2 <input name="d2" value="0" type="number" min=0 max=127 maxlength=3></label>
-                            </fieldset>
-                        </form>
-                    </div>
-                </div>
+                            </div>
+                            <div class="pure-u-1-4">
+                                <input class="pure-input-1" name="d1" placeholder="D1" type="number" min=0 max=127 maxlength=3>
+                            </div>
+                            <div class="pure-u-1-4">
+                                <input class="pure-input-1" name="d2" placeholder="D2" type="number" min=0 max=127 maxlength=3>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
             </section>
         </template>
         <script src="components.js"></script>
@@ -39,6 +43,7 @@
         <action-select id="bottom_center" name="Bottom Center" value=""></action-select>
         <action-select id="bottom_right" name="Bottom Right" value=""></action-select>
         <button id="save" class="pure-button pure-button-primary">Save configuration</button>
+        <div id="notify" class="alert alert-primary" style="display: none">text</div>
     </div>
 <body>
 </html>

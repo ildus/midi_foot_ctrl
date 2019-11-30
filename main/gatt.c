@@ -460,5 +460,7 @@ void app_main()
     }
 
     ESP_ERROR_CHECK(nvs_flash_init());
+
     initialise_wifi();
+    start_http_server();
 }
