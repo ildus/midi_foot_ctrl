@@ -11,7 +11,7 @@ applications on IPad (synths, loopers and others)
 
 ESP32-WROOM-32 module is used as a main platform. It provides decent
 Wi-Fi and BLE support with a good documentation and examples. I use
-[ESP32-DevKitC][1] module which is very convinient for development.
+[ESP32-DevKitC](https://www.espressif.com/en/products/hardware/esp32-devkitc/overview) module which is very convinient for development.
 
 Basic components:
 
@@ -21,7 +21,4 @@ Basic components:
 * Enclosure
 * 6 momentary footswitches
 
-At the end it should be something like [Looperverse Pedal][2]
-
-[1] https://www.espressif.com/en/products/hardware/esp32-devkitc/overview
-[2] https://www.youtube.com/watch?v=bb-JcCgHaWg
+At the end it should be something like [Looperverse Pedal](https://www.youtube.com/watch?v=bb-JcCgHaWg).
