@@ -41,7 +41,7 @@ typedef struct midi_event_t
 void midi_generate_note(midi_event_t *event, uint8_t note,
 		uint8_t octave, uint8_t velocity);
 void midi_setup_note(midi_event_t *event, uint16_t tm, bool on, uint8_t channel);
-midi_event_t * parse_action(char *action_string, size_t *length, char **btn);
+midi_event_t *parse_action(char *action_string, size_t *length, char **btn);
 
 void initialise_wifi();
 void start_http_server();

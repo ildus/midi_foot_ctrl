@@ -44,7 +44,7 @@ static char *button_names[] = {
 
 static char *initial_format = "var initial_values = `";
 static char *default_values[] = {
-	"action=note_on&d1=60&d2=100",
+	"action=note_on&channel=0&d1=60&d2=100&action=note_off&channel=0&d1=60&d2=0",
 	"action=cc&d1=109&d2=0",
 	"action=cc&d1=108&d2=0",
 	"action=cc&d1=68&d2=0",
@@ -178,20 +178,52 @@ static esp_err_t configure_handler(httpd_req_t *req)
 	{
 		size_t	len;
 		pos += 5;
-		midi_event_t *event = parse_action(pos, &len, NULL);
-		if (event == NULL)
+		midi_event_t *events = parse_action(pos, &len, NULL);
+		if (events == NULL)
 		{
 			error = "action parsing error";
 			goto done;
 		}
 
-		BaseType_t ret = xQueueSend(req->user_ctx, event, (TickType_t) 0 );
-
-		free(event);
-		if (ret == pdFALSE)
+		for (size_t i = 0; i < len; i++)
 		{
-			error = "queue of events is full";
-			goto done;
+			BaseType_t ret = xQueueSend(req->user_ctx, &events[i], (TickType_t) 0 );
+			if (ret == pdFALSE)
+				error = "queue of events is full";
+			vTaskDelay( 1000 / portTICK_PERIOD_MS);
+		}
+		free(events);
+	}
+	else
+	{
+		char *next_pos;
+		pos = buf;
+
+		while ((next_pos = strstr(pos, "\n")) != NULL)
+		{
+			char   *btn;
+			size_t	len;
+
+			*next_pos = '\0';
+			midi_event_t *event = parse_action(pos, &len, &btn);
+			if (event == NULL)
+			{
+				error = "parsing error";
+				goto done;
+			}
+
+			bool btn_valid = false;
+			for (size_t i = 0; i < N_BUTTONS; i++)
+			{
+				if (strcmp(button_names[i], btn) == 0)
+				{
+					btn_valid = true;
+					break;
+				}
+			}
+
+			free(event);
+			pos = next_pos + 1;
 		}
 	}
 

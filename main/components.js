@@ -13,20 +13,69 @@ if (initial_values)
         let id = parts[0];
         let vals = parts[1].split('&')
 
-        initialMap[id] = {};
+        initialMap[id] = [];
+		let curval = {};
         vals.forEach(val => {
             let keyval = val.split('=');
-            initialMap[id][keyval[0]] = keyval[1];
+            curval[keyval[0]] = keyval[1];
+			if (keyval[0] == "d2")
+			{
+				initialMap[id].push(curval);
+				curval = {};
+			}
         })
     });
 }
+
+function setup_inputs(parent_el, callback, vals)
+{
+	let action_select = parent_el.querySelector('select[name="action"]');
+	action_select.addEventListener("change", callback);
+
+	let ch_select = parent_el.querySelector('select[name="channel"]');
+	ch_select.addEventListener("change", callback);
+
+	let input1 = parent_el.querySelector('input[name="d1"]');
+	input1.addEventListener("change", callback);
+
+	let input2 = parent_el.querySelector('input[name="d2"]');
+	input2.addEventListener("change", callback);
+
+	if (vals !== undefined)
+	{
+        action_select.value = vals["action"];
+        ch_select.value = vals["channel"];
+        input1.setAttribute("value", vals["d1"]);
+        input2.setAttribute("value", vals["d2"]);
+	}
+}
+
+function extend_form(form, callback, vals)
+{
+	let fields = form.querySelector(".fields");
+	let cloned = fields.cloneNode(true);
+	let inner_add = cloned.querySelector('button.add');
+	inner_add.innerHTML = '&minus;';
+
+	let inner_play = cloned.querySelector('button.play');
+	inner_play.setAttribute('disabled', true);
+
+	cloned.querySelector('button.add').addEventListener('click', function (e) {
+		e.preventDefault();
+		cloned.remove();
+		callback();
+	});
+
+	setup_inputs(cloned, callback, vals);
+	form.appendChild(cloned);
+	callback();
+};
 
 customElements.define('action-select', class extends HTMLElement {
     constructor() {
         super();
         this.shadow = this.attachShadow({mode: 'open'});
         this.shadow.innerHTML = `
-            <link rel="stylesheet" href="pure.css">
             <slot name="controls"></slot>
         `;
     }
@@ -44,7 +93,7 @@ customElements.define('action-select', class extends HTMLElement {
 
             for (var i = 0; i < form.elements.length; i++ ) {
                 let e = form.elements[i];
-                if (e.name == 'action' || e.name == 'd1' || e.name == 'd2')
+                if (e.name == 'action' || e.name == 'd1' || e.name == 'd2' || e.name == 'channel')
                     kvpairs.push(e.name + "=" + e.value);
             }
             form_data = kvpairs.join("&");
@@ -58,20 +107,16 @@ customElements.define('action-select', class extends HTMLElement {
         update_form_values();
 
         let vals = initialMap[this.getAttribute("id")];
-        let select = form.querySelector("select");
-        select.value = vals["action"];
-        select.addEventListener("change", update_form_values);
+		setup_inputs(form, update_form_values, vals[0]);
 
-        let input1 = form.querySelector('input[name="d1"]');
-        input1.setAttribute("value", vals["d1"]);
-        input1.addEventListener("change", update_form_values);
+		if (vals.length > 1)
+		{
+			for (let i=1; i < vals.length; i++)
+				extend_form(form, update_form_values, vals[i]);
+		}
 
-        let input2 = form.querySelector('input[name="d2"]');
-        input2.setAttribute("value", vals["d2"]);
-        input2.addEventListener("change", update_form_values);
-
-        let playbtn = form.querySelector('button');
-        playbtn.addEventListener("click", function (e) {
+		update_form_values();
+        form.querySelector("button.play").addEventListener("click", function (e) {
             e.preventDefault();
 
             fetch("/configure", {
@@ -81,10 +126,17 @@ customElements.define('action-select', class extends HTMLElement {
                 if (res.ok)
                     show_notify("Played");
                 else
-                    show_notify("Error: " + res.statusText, true);
+					res.text().then(text => {
+						show_notify("Error: " + text, true);
+					});
             }).catch(res => {
                 show_notify("Error: " + res, true);
             });
+        });
+
+        form.querySelector("button.add").addEventListener("click", function (e) {
+            e.preventDefault();
+			extend_form(form, update_form_values);
         });
     }
 });
@@ -119,15 +171,16 @@ window.onload = function () {
         e.preventDefault();
         main_btn.setAttribute("disabled", true);
         let selects = document.getElementsByTagName("action-select");
-        let value = "";
 
         // collect values
+        let value = "";
         for (let i = 0; i < selects.length; i++) {
             let item = selects[i];
             value += item.getAttribute("id") + ":" + item.getAttribute("value") + "\n";
         }
 
         // save configuration
+		console.log(value);
         fetch("/configure", {
             method: "POST",
             body: value
@@ -135,7 +188,9 @@ window.onload = function () {
             if (res.ok)
 			    show_notify("saved");
             else
-			    show_notify("Error: " + res.text(), true);
+				res.text().then(text => {
+					show_notify("Error: " + text, true);
+				});
 
             main_btn.removeAttribute("disabled");
         }).catch(res => {

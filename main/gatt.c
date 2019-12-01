@@ -27,7 +27,8 @@
 #define CHAR_VAL_LEN_MAX 20
 
 // Callback declaration
-static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event,
+		esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 
 static uint8_t adv_config = 0;
 
@@ -131,7 +132,6 @@ static const uint8_t empty_midi_packet[5] = {
 };
 
 static QueueHandle_t midi_event_queue = NULL;
-static midi_event_t *empty_event = NULL;  /* used to stop sender */
 
 void send_notes(void * arg)
 {
@@ -155,9 +155,6 @@ void send_notes(void * arg)
         {
             if (event.status == 0)
                 break;
-
-            ESP_LOGI(TAG, "MIDI to play: %.2x%.2x%.2x%.2x%.2x", event.header, event.timestamp,
-                event.status, event.d1, event.d2);
 
             esp_ble_gatts_send_indicate(
                 gl_profile_tab[PROFILE_MIDI_APP_IDX].gatts_if,

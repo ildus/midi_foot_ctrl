@@ -3,9 +3,9 @@ html{font-family:sans-serif;-ms-text-size-adjust:100%;-webkit-text-size-adjust:1
 /* ours */
 div.block { margin: 1em; }
 
-@media only screen and (min-width: 600px) {
+@media only screen and (min-width: 800px) {
     div.block {
-        width: 600px;
+        width: 800px;
     }
 }
 

@@ -1,6 +1,10 @@
 #include <string.h>
 #include <stdlib.h>
+#include "esp_err.h"
+#include "esp_log.h"
+
 #include "midi.h"
+#define MAX_EVENTS 6
 
 void midi_generate_note(midi_event_t *event, uint8_t note,
 		uint8_t octave, uint8_t velocity)
@@ -27,18 +31,23 @@ midi_event_t * parse_action(char *action_string, size_t *length, char **btn)
 
     char *pos;
 
-    *length = 1; /* only one for now */
-    midi_event_t *event = calloc(1, sizeof(midi_event_t));
-	event->header     = 0x80;
-	event->timestamp  = 0x80;
+    *length = 0;
+    midi_event_t *events = calloc(MAX_EVENTS, sizeof(midi_event_t));
+
+	if (btn)
+		*btn = NULL;
 
     if ((pos = strstr(action_string, ":")) != NULL)
     {
         *pos = '\0';
         if (btn != NULL)
             *btn = str;
+
         str = pos + 1;
     }
+
+	uint8_t found_vals = 0;
+	midi_event_t	curevent;
 
     while ((token = strtok(str, "&")) != NULL)
     {
@@ -57,7 +66,7 @@ midi_event_t * parse_action(char *action_string, size_t *length, char **btn)
         }
         else
         {
-            free(event);
+            free(events);
             return NULL;
         }
 
@@ -79,15 +88,43 @@ midi_event_t * parse_action(char *action_string, size_t *length, char **btn)
             else if (strcmp(val, "tune_request") == 0)
                 action_code = 0xF6;
 
-            event->status = action_code;
+            curevent.status = action_code;
+			found_vals |= 0b1000;
         }
+        else if (strcmp(key, "channel") == 0)
+		{
+            uint8_t channel = (uint8_t) atoi(val) & 0x0F;    /* clear 4 MSB bits */
+			curevent.status |= channel;
+			found_vals |= 0b0100;
+		}
         else if (strcmp(key, "d1") == 0)
-            event->d1 = (uint8_t) atoi(val) & 0x7F;    /* clear MSB */
+		{
+            curevent.d1 = (uint8_t) atoi(val) & 0x7F;    /* clear MSB */
+			found_vals |= 0b0010;
+		}
         else if (strcmp(key, "d2") == 0)
-            event->d2 = (uint8_t) atoi(val) & 0x7F;    /* clear MSB */
+		{
+            curevent.d2 = (uint8_t) atoi(val) & 0x7F;    /* clear MSB */
+			found_vals |= 0b0001;
+		}
+
+		if (found_vals == 0b1111)
+		{
+			found_vals = 0;
+			curevent.header     = 0x80;
+			curevent.timestamp  = 0x80;
+			(*length)++;
+
+			if (*length <= MAX_EVENTS)
+				events[*length - 1] = curevent;
+
+			ESP_LOGI("midi", "MIDI parsed: %.2x%.2x%.2x%.2x%.2x", curevent.header,
+				curevent.timestamp, curevent.status, curevent.d1, curevent.d2);
+			memset(&curevent, 0, sizeof(curevent));
+		}
 
         str = NULL;
     }
 
-    return event;
+    return events;
 }
