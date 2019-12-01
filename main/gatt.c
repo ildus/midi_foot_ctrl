@@ -9,10 +9,6 @@
 #include "esp_gatts_api.h"
 #include "esp_gatt_common_api.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-
 #include <string.h>
 
 #include "midi.h"
@@ -134,37 +130,45 @@ static const uint8_t empty_midi_packet[5] = {
     0x00, // Velocity
 };
 
-static uint16_t get_13bit_timestamp()
-{
-	return (xTaskGetTickCount() * portTICK_PERIOD_MS) % ((2 << 13) - 1);
-}
+static QueueHandle_t midi_event_queue = NULL;
+static midi_event_t *empty_event = NULL;  /* used to stop sender */
 
 void send_notes(void * arg)
 {
-    ESP_LOGI(TAG, "created task for sending notes");
+    ESP_LOGI(TAG, "notes sender started");
 
-	size_t count = 0;
+    /* set up connection id */
 	task_context	*task = arg;
-
 	uint16_t	conn_id = task->conn_id;
 	free(task);
 
-    while (++count < 10000)
+    /* remove all old messages */
+    xQueueReset(midi_event_queue);
+
+    while (true)
     {
-		midi_event_t	event;
+		midi_event_t    event;
 
-		_Static_assert(sizeof(event) == 5, "struct should be packed");
-		midi_generate_note(&event, C, 4, 60);
-		midi_setup_note(&event, 0, count % 2 == 0, 0);
+		_Static_assert(sizeof(midi_event_t) == 5, "struct should be packed");
 
-		esp_ble_gatts_send_indicate(
-			gl_profile_tab[PROFILE_MIDI_APP_IDX].gatts_if,
-			conn_id,
-			midi_handle_table[IDX_MIDI_CHAR_VAL],
-			sizeof(event), (uint8_t *) &event, false);
+        if (xQueueReceive(midi_event_queue, &event, (TickType_t) 1000))
+        {
+            if (event.status == 0)
+                break;
 
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
+            ESP_LOGI(TAG, "MIDI to play: %.2x%.2x%.2x%.2x%.2x", event.header, event.timestamp,
+                event.status, event.d1, event.d2);
+
+            esp_ble_gatts_send_indicate(
+                gl_profile_tab[PROFILE_MIDI_APP_IDX].gatts_if,
+                conn_id,
+                midi_handle_table[IDX_MIDI_CHAR_VAL],
+                sizeof(event), (uint8_t *) &event, false);
+        }
+        else
+		    vTaskDelay(1);
     }
+    ESP_LOGI(TAG, "notes sender stopped");
 	vTaskDelete(NULL);
 }
 
@@ -330,11 +334,17 @@ static void gatts_profile_midi_event_handler(esp_gatts_cb_event_t event, esp_gat
 
             break;
         case ESP_GATTS_DISCONNECT_EVT:
+        {
+            midi_event_t    event;
+            memset(&event, 0, sizeof(midi_event_t));
+            xQueueSend(midi_event_queue, &event, (TickType_t) 0);
+
             ESP_LOGI(TAG, "ESP_GATTS_DISCONNECT_EVT, reason = %d", param->disconnect.reason);
             if (adv_config == 0) {
                 esp_ble_gap_start_advertising(&adv_params);
             }
             break;
+        }
         case ESP_GATTS_CREAT_ATTR_TAB_EVT: {
 			ESP_LOGI(TAG, "ESP_GATTS_CREAT_ATTR_TAB_EVT");
 
@@ -450,7 +460,14 @@ void app_main()
     }
     ESP_ERROR_CHECK( ret );
 
+    midi_event_queue = xQueueCreate(4, sizeof(midi_event_t));
+    if( midi_event_queue == NULL )
+    {
+        ESP_LOGE(TAG, "could not create events queue");
+        return;
+    }
+
     init_ble();
     initialise_wifi();
-    start_http_server();
+    start_http_server(midi_event_queue);
 }

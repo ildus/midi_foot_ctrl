@@ -5,6 +5,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "freertos/queue.h"
+
 enum Notes {
 	C = 0,
 	Ci,

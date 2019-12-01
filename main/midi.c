@@ -29,6 +29,9 @@ midi_event_t * parse_action(char *action_string, size_t *length, char **btn)
 
     *length = 1; /* only one for now */
     midi_event_t *event = calloc(1, sizeof(midi_event_t));
+	event->header     = 0x80;
+	event->timestamp  = 0x80;
+
     if ((pos = strstr(action_string, ":")) != NULL)
     {
         *pos = '\0';

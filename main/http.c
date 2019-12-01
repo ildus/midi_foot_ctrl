@@ -6,6 +6,7 @@
 #include "esp_event_loop.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "freertos/portmacro.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "midi.h"
@@ -43,7 +44,7 @@ static char *button_names[] = {
 
 static char *initial_format = "var initial_values = `";
 static char *default_values[] = {
-	"action=cc&d1=89&d2=0",
+	"action=note_on&d1=60&d2=100",
 	"action=cc&d1=109&d2=0",
 	"action=cc&d1=108&d2=0",
 	"action=cc&d1=68&d2=0",
@@ -177,11 +178,21 @@ static esp_err_t configure_handler(httpd_req_t *req)
 	{
 		size_t	len;
 		pos += 5;
-		ESP_LOGI(TAG, "%s", pos);
-		midi_event_t *midi = parse_action(pos, &len, NULL);
-		ESP_LOGI(TAG, "MIDI: %.2x%.2x%.2x%.2x%.2x", midi->header, midi->timestamp,
-			midi->status, midi->d1, midi->d2);
-		free(midi);
+		midi_event_t *event = parse_action(pos, &len, NULL);
+		if (event == NULL)
+		{
+			error = "action parsing error";
+			goto done;
+		}
+
+		BaseType_t ret = xQueueSend(req->user_ctx, event, (TickType_t) 0 );
+
+		free(event);
+		if (ret == pdFALSE)
+		{
+			error = "queue of events is full";
+			goto done;
+		}
 	}
 
 done:
@@ -216,7 +227,7 @@ void register_file_url(httpd_handle_t server, char *uri, file_cxt *cxt)
     httpd_register_uri_handler(server, &data);
 }
 
-void start_http_server()
+void start_http_server(QueueHandle_t queue)
 {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -245,7 +256,7 @@ void start_http_server()
         .uri       = "/configure",
         .method    = HTTP_POST,
         .handler   = configure_handler,
-        .user_ctx  = NULL,
+        .user_ctx  = queue,
     };
     httpd_register_uri_handler(server, &configure);
 }

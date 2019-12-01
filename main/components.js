@@ -78,7 +78,10 @@ customElements.define('action-select', class extends HTMLElement {
                 method: "POST",
                 body: "play:" + get_values(),
             }).then(res => {
-                show_notify("played");
+                if (res.ok)
+                    show_notify("Played");
+                else
+                    show_notify("Error: " + res.statusText, true);
             }).catch(res => {
                 show_notify("Error: " + res, true);
             });
@@ -125,13 +128,15 @@ window.onload = function () {
         }
 
         // save configuration
-        console.log(value);
         fetch("/configure", {
             method: "POST",
             body: value
         }).then(res => {
-			show_notify("saved");
-			console.log("Request complete! response:", res);
+            if (res.ok)
+			    show_notify("saved");
+            else
+			    show_notify("Error: " + res.text(), true);
+
             main_btn.removeAttribute("disabled");
         }).catch(res => {
             show_notify("Error: " + res, true);
