@@ -1,6 +1,6 @@
 #include <string.h>
+#include "esp_err.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
@@ -19,6 +19,7 @@
 #define WIFI_PASS      "12341234"
 
 static const char *TAG = "wifi softAP";
+static const char *STORAGE = "midi storage";
 
 typedef struct {
 	char *type;
@@ -45,11 +46,11 @@ static char *button_names[] = {
 static char *initial_format = "var initial_values = `";
 static char *default_values[] = {
 	"action=note_on&channel=0&d1=60&d2=100&action=note_off&channel=0&d1=60&d2=0",
-	"action=cc&d1=109&d2=0",
-	"action=cc&d1=108&d2=0",
-	"action=cc&d1=68&d2=0",
-	"action=cc&d1=86&d2=0",
-	"action=cc&d1=85&d2=0"
+	"action=cc&channel=0&d1=109&d2=0",
+	"action=cc&channel=0&d1=108&d2=0",
+	"action=cc&channel=0&d1=68&d2=0",
+	"action=cc&channel=0&d1=86&d2=0",
+	"action=cc&channel=0&d1=85&d2=0"
 };
 
 
@@ -72,8 +73,8 @@ static esp_err_t initial_handler(httpd_req_t *req)
 	if (init_len == 0)
 		init_len = strlen(initial_format);
 
-	nvs_handle my_handle;
-    err = nvs_open("storage", NVS_READWRITE, &my_handle);
+	nvs_handle storage_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &storage_handle);
 	ESP_ERROR_CHECK(err);
 
 	/* first calculate whole length */
@@ -83,19 +84,18 @@ static esp_err_t initial_handler(httpd_req_t *req)
 		char *key = button_names[i];
 		key_lengths[i] = strlen(key);
 
-		err = nvs_get_str(my_handle, key, NULL, &vallen);
+		lengths[i] = 0;		/* indicates that it's default */
+		err = nvs_get_str(storage_handle, key, NULL, &vallen);
 		switch (err)
 		{
 			case ESP_OK:
 				lengths[i] = vallen - 1; /* minus zero terminator */
 				break;
-			case ESP_ERR_NVS_NOT_FOUND:
-				len += strlen(default_values[i]);
-				lengths[i] = 0;		/* indicates that it's default */
-				break;
 			default:
-				ESP_LOGE(TAG, "Error (%s) reading!\n", esp_err_to_name(err));
-				ESP_ERROR_CHECK(err);
+				if (err != ESP_ERR_NVS_NOT_FOUND)
+					ESP_LOGE(TAG, "Error (%s) reading!: %s\n", key, esp_err_to_name(err));
+
+				len += strlen(default_values[i]);
 		}
 		len += key_lengths[i] + 1; /* plus ':' */
 		len += lengths[i];
@@ -129,7 +129,8 @@ static esp_err_t initial_handler(httpd_req_t *req)
 		}
 		else
 		{
-			ESP_ERROR_CHECK(nvs_get_str(my_handle, key, pos, &lengths[i]))
+			size_t	len = lengths[i] + 1;
+			ESP_ERROR_CHECK(nvs_get_str(storage_handle, key, pos, &len))
 			pos += lengths[i];
 		}
 
@@ -142,7 +143,7 @@ static esp_err_t initial_handler(httpd_req_t *req)
 	*pos = '\0';
 	ESP_LOGI(TAG, "%s", res);
 
-	nvs_close(my_handle);
+	nvs_close(storage_handle);
 
     httpd_resp_set_type(req, "text/plain");
     httpd_resp_send(req, res, pos - res);
@@ -201,19 +202,37 @@ static esp_err_t configure_handler(httpd_req_t *req)
 
 		while ((next_pos = strstr(pos, "\n")) != NULL)
 		{
-			char   *btn;
+			char   *btn,
+				   *copy;
 			size_t	len;
 
 			*next_pos = '\0';
-			midi_event_t *event = parse_action(pos, &len, &btn);
-			if (event == NULL)
+
+			if (strlen(pos) >= 4000) // max storage size
 			{
-				error = "parsing error";
+				error = "too long message";
+				goto done;
+			}
+
+			/* parse action will modify the value, so keep copy */
+			copy = strstr(pos, ":");
+			if (copy == NULL)
+			{
+				error = "parsing error #0";
+				goto done;
+			}
+			copy = strdup(copy + 1);
+
+			midi_event_t *events = parse_action(pos, &len, &btn);
+			if (events == NULL)
+			{
+				free(copy);
+				error = "parsing error %#1";
 				goto done;
 			}
 
 			bool btn_valid = false;
-			for (size_t i = 0; i < N_BUTTONS; i++)
+			for (size_t i = 0; btn && i < N_BUTTONS; i++)
 			{
 				if (strcmp(button_names[i], btn) == 0)
 				{
@@ -222,7 +241,17 @@ static esp_err_t configure_handler(httpd_req_t *req)
 				}
 			}
 
-			free(event);
+			if (btn_valid && len > 0)
+			{
+				nvs_handle storage_handle;
+				ESP_ERROR_CHECK(nvs_open(STORAGE, NVS_READWRITE, &storage_handle));
+				ESP_LOGI(TAG, "writing value %s with key %s", copy, btn);
+				ESP_ERROR_CHECK(nvs_set_str(storage_handle, btn, copy));
+				nvs_close(storage_handle);
+			}
+
+			free(copy);
+			free(events);
 			pos = next_pos + 1;
 		}
 	}
