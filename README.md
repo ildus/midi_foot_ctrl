@@ -3,7 +3,7 @@ MIDI footswitch controller over Bluetooth
 
 The project contains source code for MIDI footswitch controller which is using
 MIDI over Bluetooth to transfer commands. It's almost ready (MIDI part is done),
-only GPIO part (reacting to buttons) is not implemented.
+GPIO part (reacting to buttons) is partially implemented.
 
 The goal of this controller is to control all kind of applications that
 support MIDI over Bluetooth. It could Ableton Live, or in my case music
