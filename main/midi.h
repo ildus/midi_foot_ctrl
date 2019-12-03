@@ -54,7 +54,7 @@ enum {
     MIDI_IDX_NB,
 };
 
-enum {
+typedef enum {
     TOP_LEFT,
     TOP_CENTER,
     TOP_RIGHT,
@@ -62,5 +62,5 @@ enum {
     BOTTOM_CENTER,
     BOTTOM_RIGHT,
     N_BUTTONS,
-};
+} button_num_t;
 #endif
