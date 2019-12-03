@@ -21,4 +21,17 @@ Basic components:
 * Enclosure
 * 6 momentary footswitches
 
+Using
+--------
+1) Install [esp-idf](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html#get-esp-idf). I used stable  3.3 version.
+2) Build and flash the esp32:
+```
+    mkdir build && cd build
+    cmake ..
+    # set flash size
+    make menuconfig
+    # could require to change serial port
+    make && make flash
+```
+
 At the end it should be something like [Looperverse Pedal](https://www.youtube.com/watch?v=bb-JcCgHaWg).
