@@ -18,6 +18,9 @@
 #define WIFI_SSID      "bigfoot"
 #define WIFI_PASS      "12341234"
 
+static bool shut_http_down = true;
+static httpd_handle_t server = NULL;
+
 static const char *TAG = "wifi softAP";
 static const char *STORAGE = "midi storage";
 
@@ -149,6 +152,7 @@ static esp_err_t initial_handler(httpd_req_t *req)
     httpd_resp_send(req, res, pos - res);
 	free(res);
 
+	shut_http_down = false;
 	return ESP_OK;
 }
 
@@ -277,7 +281,7 @@ file_cxt index_cxt = {"text/html", index_start, index_end};
 file_cxt comp_cxt = {"text/js", comp_start, comp_end};
 file_cxt pure_cxt = {"text/css", pure_start, pure_end};
 
-void register_file_url(httpd_handle_t server, char *uri, file_cxt *cxt)
+static void register_file_url(httpd_handle_t server, char *uri, file_cxt *cxt)
 {
     httpd_uri_t data = {
         .uri       = uri,
@@ -288,9 +292,22 @@ void register_file_url(httpd_handle_t server, char *uri, file_cxt *cxt)
     httpd_register_uri_handler(server, &data);
 }
 
+static void unused_callback( TimerHandle_t arg )
+{
+	(void) arg;
+
+	if (shut_http_down)
+	{
+		ESP_LOGI("http", "Unused timeout was triggered");
+		stop_wifi();
+	}
+	else
+		ESP_LOGI("http", "Unused timeout was triggered, "
+				"but since HTTP was used and the server keeps working");
+}
+
 void start_http_server(QueueHandle_t queue)
 {
-    httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
     /* Use the URI wildcard matching function in order to
@@ -320,6 +337,19 @@ void start_http_server(QueueHandle_t queue)
         .user_ctx  = queue,
     };
     httpd_register_uri_handler(server, &configure);
+
+	// if web server will not be used in 10 minutes, shut it down and
+	// deinit wifi
+	TimerHandle_t timer_check_using = xTimerCreate("unused track",
+			pdMS_TO_TICKS(60000 * 10),
+			pdFALSE, NULL, unused_callback);
+
+	if (!timer_check_using)
+		ESP_LOGE("http", "could not init unused checking timer");
+
+	shut_http_down = true;
+	if (xTimerStart(timer_check_using, 0) != pdPASS)
+		ESP_LOGE("http", "could not start unused checking timer");
 }
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
@@ -363,4 +393,18 @@ void initialise_wifi()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_softap finished.SSID:%s password:%s", WIFI_SSID, WIFI_PASS);
+}
+
+void stop_wifi()
+{
+	if (server) {
+        /* Stop the httpd server */
+		ESP_LOGI(TAG, "HTTP server was stopped on unused timeout");
+        httpd_stop(server);
+    }
+
+	esp_wifi_stop();
+	esp_wifi_deinit();
+
+    ESP_LOGI(TAG, "WiFI was stopped on unused timeout");
 }

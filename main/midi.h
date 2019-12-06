@@ -45,6 +45,7 @@ midi_event_t *parse_action(char *action_string, size_t *length, char **btn);
 
 void initialise_wifi();
 void start_http_server();
+void stop_wifi();
 
 enum {
     IDX_SVC,
