@@ -21,8 +21,7 @@
 static bool shut_http_down = true;
 static httpd_handle_t server = NULL;
 
-static const char *TAG = "wifi softAP";
-static const char *STORAGE = "midi storage";
+static const char *TAG = "WiFi AP";
 
 typedef struct {
 	char *type;
@@ -37,7 +36,7 @@ extern const char comp_end[]		asm("_binary_components_js_end");
 extern const char pure_start[]		asm("_binary_pure_css_start");
 extern const char pure_end[]		asm("_binary_pure_css_end");
 
-static char *button_names[] = {
+char *button_names[] = {
 	"top_left",
 	"top_center",
 	"top_right",
@@ -47,7 +46,7 @@ static char *button_names[] = {
 };
 
 static char *initial_format = "var initial_values = `";
-static char *default_values[] = {
+char *default_values[] = {
 	"action=note_on&channel=0&d1=60&d2=100&action=note_off&channel=0&d1=60&d2=0",
 	"action=cc&channel=0&d1=109&d2=0",
 	"action=cc&channel=0&d1=108&d2=0",
@@ -161,6 +160,7 @@ static esp_err_t configure_handler(httpd_req_t *req)
 	char *error = NULL;
 	char *buf = NULL;
 	httpd_resp_set_hdr(req, "Location", "/");
+	QueueHandle_t midi_queue = req->user_ctx;
 
 	if (req->content_len > 10000)
 	{
@@ -192,7 +192,7 @@ static esp_err_t configure_handler(httpd_req_t *req)
 
 		for (size_t i = 0; i < len; i++)
 		{
-			BaseType_t ret = xQueueSend(req->user_ctx, &events[i], (TickType_t) 0 );
+			BaseType_t ret = xQueueSend(midi_queue, &events[i], (TickType_t) 0 );
 			if (ret == pdFALSE)
 				error = "queue of events is full";
 			vTaskDelay( 1000 / portTICK_PERIOD_MS);
@@ -258,6 +258,9 @@ static esp_err_t configure_handler(httpd_req_t *req)
 			free(events);
 			pos = next_pos + 1;
 		}
+
+		/* use just saved values */
+		init_button_events(midi_queue);
 	}
 
 done:
@@ -341,7 +344,7 @@ void start_http_server(QueueHandle_t queue)
 	// if web server will not be used in 10 minutes, shut it down and
 	// deinit wifi
 	TimerHandle_t timer_check_using = xTimerCreate("unused track",
-			pdMS_TO_TICKS(60000 * 10),
+			pdMS_TO_TICKS(60000 * 5),
 			pdFALSE, NULL, unused_callback);
 
 	if (!timer_check_using)

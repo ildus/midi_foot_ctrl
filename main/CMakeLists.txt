@@ -1,5 +1,5 @@
 set(COMPONENT_SRCS
-	"gatt.c"
+	"main.c"
 	"midi.c"
 	"http.c"
 	"control.c"

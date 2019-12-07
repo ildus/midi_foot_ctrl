@@ -465,6 +465,8 @@ void app_main()
     }
 
     init_ble();
+	init_button_events(midi_event_queue);
+	init_gpio();
     initialise_wifi();
     start_http_server(midi_event_queue);
 }

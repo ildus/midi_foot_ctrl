@@ -2,9 +2,20 @@
 #include <stdlib.h>
 #include "esp_err.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #include "midi.h"
 #define MAX_EVENTS 6
+
+typedef struct {
+	QueueHandle_t	queue;
+	size_t			total_len;
+	size_t			current;
+	midi_event_t	events[MAX_EVENTS];
+} btn_command;
+
+static btn_command commands[N_BUTTONS];
 
 void midi_generate_note(midi_event_t *event, uint8_t note,
 		uint8_t octave, uint8_t velocity)
@@ -15,6 +26,66 @@ void midi_generate_note(midi_event_t *event, uint8_t note,
 	event->status     = 0x90;
 	event->d1       = note_code;
 	event->d2       = velocity;
+}
+
+void init_button_events(QueueHandle_t midi_queue) {
+	esp_err_t err;
+
+	nvs_handle storage_handle;
+    err = nvs_open(STORAGE, NVS_READWRITE, &storage_handle);
+	ESP_ERROR_CHECK(err);
+
+	for (size_t i = 0; i < N_BUTTONS; i++)
+	{
+		size_t vallen;
+		char *key = button_names[i];
+		char *val;
+
+		err = nvs_get_str(storage_handle, key, NULL, &vallen);
+		if (err == ESP_OK)
+		{
+			val = malloc(vallen);
+			ESP_ERROR_CHECK(nvs_get_str(storage_handle, key, val, &vallen));
+		}
+		else
+			val = strdup(default_values[i]);
+
+		size_t events_len;
+		midi_event_t *events = parse_action(val, &events_len, NULL);
+		free(val);
+
+		if (events == NULL)
+		{
+			ESP_LOGE("midi", "could not parse events for btn %u", i);
+			continue;
+		}
+
+		commands[i].queue = midi_queue;
+		commands[i].total_len = events_len;
+		commands[i].current = 0;
+		memset(commands[i].events, 0, sizeof(midi_event_t) * MAX_EVENTS);
+		memcpy(commands[i].events, events, sizeof(midi_event_t) * events_len);
+		free(events);
+
+		ESP_LOGI("midi", "btn %u initialized, events count: %u", i, commands[i].total_len);
+	}
+	nvs_close(storage_handle);
+}
+
+void trigger_button(button_num_t btn)
+{
+	btn_command *cmd = &commands[btn];
+	BaseType_t ret = xQueueSend(cmd->queue, &cmd->events[cmd->current], (TickType_t) 0 );
+	if (ret == pdFALSE)
+		ESP_LOGE("midi", "queue of events is full");
+	else
+	{
+		cmd->current += 1;
+		if (cmd->current >= cmd->total_len)
+			cmd->current = 0;
+
+		ESP_LOGI("midi", "btn %d triggered", btn);
+	}
 }
 
 void midi_setup_note(midi_event_t *event, uint16_t tm, bool on, uint8_t channel)
@@ -116,10 +187,16 @@ midi_event_t * parse_action(char *action_string, size_t *length, char **btn)
 			(*length)++;
 
 			if (*length <= MAX_EVENTS)
+			{
 				events[*length - 1] = curevent;
 
-			ESP_LOGI("midi", "MIDI parsed: %.2x%.2x%.2x%.2x%.2x", curevent.header,
-				curevent.timestamp, curevent.status, curevent.d1, curevent.d2);
+				ESP_LOGI("midi", "MIDI parsed: %.2x%.2x%.2x%.2x%.2x", curevent.header,
+					curevent.timestamp, curevent.status, curevent.d1, curevent.d2);
+			}
+			else
+				ESP_LOGI("midi", "MIDI skipped, max is 6: %.2x%.2x%.2x%.2x%.2x", curevent.header,
+					curevent.timestamp, curevent.status, curevent.d1, curevent.d2);
+
 			memset(&curevent, 0, sizeof(curevent));
 		}
 

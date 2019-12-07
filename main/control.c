@@ -34,13 +34,13 @@ static void gpio_handle_buttons(void* queue) {
     while (true) {
 		button_num_t	btn;
         if (xQueueReceive(queue, &btn, portMAX_DELAY)) {
+			trigger_button(btn);
             ESP_LOGI("gpio", "clicked button %d", btn);
         }
     }
 }
 
-void init_buttons() {
-	uint64_t		pins_mask = 0;
+void init_gpio() {
 	gpio_config_t	io_conf;
 
 	/* init task */
@@ -57,7 +57,6 @@ void init_buttons() {
 
 	//interrupt of low level
     io_conf.intr_type = GPIO_INTR_LOW_LEVEL;
-    io_conf.pin_bit_mask = pins_mask;
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
 
