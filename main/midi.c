@@ -2,6 +2,7 @@
 #include <string.h>
 #include "esp_err.h"
 #include "esp_log.h"
+#include "freertos/portmacro.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 
@@ -77,9 +78,8 @@ void trigger_button(button_num_t btn)
 {
     btn_command * cmd = &commands[btn];
     BaseType_t ret = xQueueSend(cmd->queue, &cmd->events[cmd->current], (TickType_t)0);
-    if (ret == pdFALSE)
-        ESP_LOGE("midi", "queue of events is full");
-    else
+
+    if (ret == pdTRUE)
     {
         cmd->current += 1;
         if (cmd->current >= cmd->total_len)
