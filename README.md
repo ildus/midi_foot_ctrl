@@ -52,3 +52,8 @@ Basic components:
 * Power switch
 * Enclosure
 * 6 momentary footswitches
+
+Schematic
+----------
+
+![This is basic schematic of the project](https://umarta.com/scr/umqbbmcinnpxykzwyohl.png)
