@@ -541,6 +541,22 @@ void app_main()
 {
     esp_err_t ret;
 
+    /* restart if woke up */
+    switch (esp_sleep_get_wakeup_cause()) {
+        case ESP_SLEEP_WAKEUP_TIMER:
+        case ESP_SLEEP_WAKEUP_TOUCHPAD:
+        case ESP_SLEEP_WAKEUP_ULP:
+        case ESP_SLEEP_WAKEUP_GPIO:
+        case ESP_SLEEP_WAKEUP_UART:
+        case ESP_SLEEP_WAKEUP_EXT1:
+        case ESP_SLEEP_WAKEUP_EXT0: {
+            esp_restart();
+            //rtc_gpio_deinit(GPIO_NUM_15);
+        }
+        default:
+            break;
+    }
+
     // Initialize NVS.
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)

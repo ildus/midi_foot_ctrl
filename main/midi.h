@@ -67,6 +67,7 @@ void midi_setup_note(midi_event_t *event, uint16_t tm, bool on, uint8_t channel)
 midi_event_t *parse_action(char *action_string, size_t *length, char **btn);
 void init_button_events(QueueHandle_t midi_queue);
 void trigger_button(button_num_t btn);
+void setup_unused_timer(void);
 
 void initialise_wifi();
 void start_http_server();

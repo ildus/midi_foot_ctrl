@@ -160,6 +160,7 @@ static esp_err_t configure_handler(httpd_req_t * req)
         goto done;
     }
 
+    setup_unused_timer();
     buf = malloc(req->content_len + 1);
     int ret = httpd_req_recv(req, buf, req->content_len);
 
