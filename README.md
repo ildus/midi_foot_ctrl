@@ -37,11 +37,13 @@ I used stable 3.3 version.
 Notes
 ------
 
-* Use GPIO pins from 16-22 (excluding 20) for buttons. The pins are pulled up,
+* Use GPIO pins 15,17,18,19,21,22 for buttons. The pins are pulled up,
 so buttons should connect pins to the ground to trigger midi commands. By default
 buttons are configured as in [Looperverse Pedal](https://www.youtube.com/watch?v=bb-JcCgHaWg).
 * In current version of the firmware WiFI and HTTP server are shutting down after
-10 minutes of idle time (if you need to configure buttons just restart the device).
+5 minutes of idle time (if you need to configure buttons just restart the device),
+and the device is shutting down after 10 minutes of unused time. The button
+connected to GPIO15 wakes up the device.
 
 Basic components:
 -----------------
@@ -51,8 +53,9 @@ Basic components:
 * Power switch
 * Enclosure
 * 6 momentary footswitches
+* One P-channel transistor.
 
-Schematic
-----------
+Sample schematic
+-----------------
 
 ![This is basic schematic of the project](https://umarta.com/scr/umqbbmcinnpxykzwyohl.png)
