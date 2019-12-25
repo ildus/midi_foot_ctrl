@@ -40,12 +40,12 @@ extern const char pure_end[] asm("_binary_pure_css_end");
 char * button_names[] = {"top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"};
 
 static char * initial_format = "var initial_values = `";
-char * default_values[] = {"action=note_on&channel=0&d1=60&d2=100&action=note_off&channel=0&d1=60&d2=0",
-                           "action=cc&channel=0&d1=109&d2=0",
-                           "action=cc&channel=0&d1=108&d2=0",
-                           "action=cc&channel=0&d1=68&d2=0",
-                           "action=cc&channel=0&d1=86&d2=0",
-                           "action=cc&channel=0&d1=85&d2=0"};
+char * default_values[] = {"action=cc&channel=0&d1=89&d2=127",
+                           "action=cc&channel=0&d1=109&d2=127",
+                           "action=cc&channel=0&d1=108&d2=127",
+                           "action=cc&channel=0&d1=68&d2=127",
+                           "action=cc&channel=0&d1=86&d2=127",
+                           "action=cc&channel=0&d1=85&d2=127"};
 
 
 static esp_err_t file_handler(httpd_req_t * req)
@@ -297,11 +297,6 @@ static void unused_callback(TimerHandle_t arg)
         ESP_LOGI("http", "Unused timeout was triggered");
         stop_wifi();
     }
-    else
-        ESP_LOGI(
-            "http",
-            "Unused timeout was triggered, "
-            "but since HTTP was used and the server keeps working");
 }
 
 void start_http_server(QueueHandle_t queue)

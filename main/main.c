@@ -8,6 +8,7 @@
 #include "esp_gap_ble_api.h"
 #include "esp_gatt_common_api.h"
 #include "esp_gatts_api.h"
+#include "driver/rtc_io.h"
 
 #include <string.h>
 
@@ -550,8 +551,7 @@ void app_main()
         case ESP_SLEEP_WAKEUP_UART:
         case ESP_SLEEP_WAKEUP_EXT1:
         case ESP_SLEEP_WAKEUP_EXT0: {
-            esp_restart();
-            //rtc_gpio_deinit(GPIO_NUM_15);
+            rtc_gpio_deinit(GPIO_NUM_15);
         }
         default:
             break;

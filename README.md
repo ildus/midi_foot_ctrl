@@ -42,7 +42,7 @@ so buttons should connect pins to the ground to trigger midi commands. By defaul
 buttons are configured as in [Looperverse Pedal](https://www.youtube.com/watch?v=bb-JcCgHaWg).
 * In current version of the firmware WiFI and HTTP server are shutting down after
 5 minutes of idle time (if you need to configure buttons just restart the device),
-and the device is shutting down after 10 minutes of unused time. The button
+and the device is shutting down after 15 minutes of unused time. The button
 connected to GPIO15 wakes up the device.
 
 Basic components:

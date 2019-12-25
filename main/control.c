@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "driver/gpio.h"
 #include "esp_intr_alloc.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
@@ -20,7 +21,7 @@ typedef struct
     gpio_num_t pin;
     button_num_t btn;
     xQueueHandle qu;
-    uint32_t    ts;
+    volatile uint32_t ts;
 } isr_context;
 
 static void IRAM_ATTR gpio_isr_handler(void * arg)
@@ -29,7 +30,7 @@ static void IRAM_ATTR gpio_isr_handler(void * arg)
     uint32_t last_ts = ctx->ts;
     ctx->ts = xTaskGetTickCountFromISR() * portTICK_PERIOD_MS;
 
-    if (last_ts != 0 && ctx->ts - last_ts <= 120)
+    if (last_ts != 0 && ctx->ts - last_ts <= 200)
         return;
 
     xQueueSendFromISR(ctx->qu, &ctx->btn, NULL);
@@ -91,7 +92,7 @@ void setup_unused_timer(void)
     else
     {
         timer_handle = xTimerCreate("sleep if unused",
-                pdMS_TO_TICKS(60000 * 10), pdFALSE, NULL, idle_callback);
+                pdMS_TO_TICKS(60000 * 15), pdFALSE, NULL, idle_callback);
         if (timer_handle)
             xTimerStart(timer_handle, 0);
     }
@@ -117,6 +118,7 @@ void init_gpio()
     io_conf.intr_type = GPIO_INTR_NEGEDGE;
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    //io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
 
     ESP_ERROR_CHECK(gpio_config(&io_conf));
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
