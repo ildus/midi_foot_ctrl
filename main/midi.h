@@ -73,5 +73,7 @@ void initialise_wifi();
 void start_http_server();
 void stop_wifi();
 void init_gpio();
+void start_dns_server();
+void shutdown_dns();
 
 #endif

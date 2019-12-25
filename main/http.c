@@ -37,6 +37,8 @@ extern const char comp_end[] asm("_binary_components_js_end");
 extern const char pure_start[] asm("_binary_pure_css_start");
 extern const char pure_end[] asm("_binary_pure_css_end");
 
+static const char *CAPTIVE_HTML = "Open <a href=\"http://192.168.4.1\">configuration page";
+
 char * button_names[] = {"top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"};
 
 static char * initial_format = "var initial_values = `";
@@ -144,6 +146,15 @@ static esp_err_t initial_handler(httpd_req_t * req)
     free(res);
 
     shut_http_down = false;
+    return ESP_OK;
+}
+
+static esp_err_t captive_handler(httpd_req_t * req)
+{
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_status(req, "301 Moved Permanently");
+    httpd_resp_set_hdr(req, "Location", "http://192.168.4.1");
+    httpd_resp_send(req, CAPTIVE_HTML, strlen(CAPTIVE_HTML));
     return ESP_OK;
 }
 
@@ -331,6 +342,14 @@ void start_http_server(QueueHandle_t queue)
     };
     httpd_register_uri_handler(server, &configure);
 
+    httpd_uri_t captive = {
+        .uri = "/hotspot-detect.html",
+        .method = HTTP_GET,
+        .handler = captive_handler,
+        .user_ctx = NULL,
+    };
+    httpd_register_uri_handler(server, &captive);
+
     // if web server will not be used in 10 minutes, shut it down and
     // deinit wifi
     TimerHandle_t timer_check_using = xTimerCreate("unused track", pdMS_TO_TICKS(60000 * 5), pdFALSE, NULL, unused_callback);
@@ -395,6 +414,7 @@ void stop_wifi()
         httpd_stop(server);
     }
 
+    shutdown_dns();
     esp_wifi_stop();
     esp_wifi_deinit();
 

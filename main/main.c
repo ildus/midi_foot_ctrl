@@ -578,4 +578,5 @@ void app_main()
     init_gpio();
     initialise_wifi();
     start_http_server(midi_event_queue);
+    start_dns_server();
 }
