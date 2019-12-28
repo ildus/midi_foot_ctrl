@@ -46,7 +46,7 @@ static void dns_main(void * pvParameters)
     socklen_t client_len = sizeof(struct sockaddr_in);
     uint32_t i = 0;
 
-    ESP_LOGI(TAG, "DNS server start ...");
+    ESP_LOGI(TAG, "DNS server has started");
 
     int sock = create_udp_socket(53);
 
